@@ -18,8 +18,26 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* 确保这些基本样式存在 */
 .hidden {
-    display: none;
+    display: none !important;
+}
+
+.message {
+    padding: 5px 10px;
+    margin: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.message .time {
+    color: #666;
+    font-size: 0.8em;
+    margin-right: 10px;
+}
+
+.message .nickname {
+    font-weight: bold;
+    margin-right: 10px;
 }
 
 /* 模态框样式 */

@@ -6,23 +6,33 @@ let currentUser = {
 };
 
 // 初始化函数
-function init() {
+async function init() {
+    await checkNickname();
+    await initFirebase();
     game = new Game();
     chat = new Chat();
-    checkNickname();
-    initFirebase();
 }
 
 // 检查昵称
 function checkNickname() {
-    const savedNickname = localStorage.getItem('nickname');
-    if (!savedNickname) {
-        showNicknameModal();
-    } else {
-        currentUser.nickname = savedNickname;
-        currentUser.id = localStorage.getItem('userId') || generateUserId();
-        updateUserInfo();
-    }
+    return new Promise((resolve) => {
+        const savedNickname = localStorage.getItem('nickname');
+        if (!savedNickname) {
+            showNicknameModal();
+            // 等待用户设置昵称
+            const checkInterval = setInterval(() => {
+                if (currentUser.nickname) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+        } else {
+            currentUser.nickname = savedNickname;
+            currentUser.id = localStorage.getItem('userId') || generateUserId();
+            updateUserInfo();
+            resolve();
+        }
+    });
 }
 
 // 显示昵称设置弹窗
@@ -62,11 +72,19 @@ function generateUserId() {
 }
 
 // 初始化Firebase实时数据库监听
+// 在 initFirebase 函数中添加错误处理
 function initFirebase() {
-    // 监听在线用户
-    database.ref('users').on('value', (snapshot) => {
-        updateOnlineUsers(snapshot.val());
-    });
+    try {
+        // 监听在线用户
+        database.ref('users').on('value', (snapshot) => {
+            try {
+                updateOnlineUsers(snapshot.val());
+            } catch (error) {
+                console.error('更新在线用户列表失败:', error);
+            }
+        }, (error) => {
+            console.error('监听在线用户失败:', error);
+        });
 
     // 监听房间列表
     database.ref('rooms').on('value', (snapshot) => {
@@ -89,6 +107,9 @@ function initFirebase() {
             lastActive: Date.now()
         });
     }, CONSTANTS.HEARTBEAT_INTERVAL);
+    } catch (error) {
+        console.error('Firebase初始化失败:', error);
+    }
 }
 
 // 更新在线用户列表
@@ -113,27 +134,33 @@ function updateOnlineUsers(users) {
 
 // 邀请对战
 function inviteToGame(userId) {
-    const roomId = generateRoomId();
-    database.ref(`rooms/${roomId}`).set({
-        players: {
-            [currentUser.id]: {
-                nickname: currentUser.nickname,
-                color: 'black'
-            },
-            [userId]: {
-                nickname: users[userId].nickname,
-                color: 'white'
-            }
-        },
-        gameState: {
-            board: game.board,
-            currentPlayer: 'black',
-            gameState: 'waiting'
-        },
-        created: Date.now()
-    });
+    // 先获取被邀请用户的信息
+    database.ref(`users/${userId}`).once('value').then((snapshot) => {
+        const invitedUser = snapshot.val();
+        if (!invitedUser) return;
 
-    joinRoom(roomId);
+        const roomId = generateRoomId();
+        database.ref(`rooms/${roomId}`).set({
+            players: {
+                [currentUser.id]: {
+                    nickname: currentUser.nickname,
+                    color: 'black'
+                },
+                [userId]: {
+                    nickname: invitedUser.nickname,
+                    color: 'white'
+                }
+            },
+            gameState: {
+                board: game.board,
+                currentPlayer: 'black',
+                gameState: 'waiting'
+            },
+            created: Date.now()
+        }).then(() => {
+            joinRoom(roomId);
+        });
+    });
 }
 
 // 加入房间
