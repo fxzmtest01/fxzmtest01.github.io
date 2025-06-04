@@ -29,7 +29,7 @@ class Chat {
             timestamp: Date.now()
         };
 
-        database.ref('lobby/messages').push(message);
+        return database.ref('lobby/messages').push(message);
     }
 
     sendRoomMessage(roomId, nickname, content) {
@@ -39,7 +39,7 @@ class Chat {
             timestamp: Date.now()
         };
 
-        database.ref(`rooms/${roomId}/messages`).push(message);
+        return database.ref(`rooms/${roomId}/messages`).push(message);
     }
 
     displayLobbyMessage(message) {

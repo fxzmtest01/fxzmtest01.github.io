@@ -37,9 +37,16 @@
 
             <div class="chat-box">
                 <div id="lobby-chat" class="chat-messages"></div>
+                <!-- 大厅聊天 -->
                 <div class="chat-input">
                     <input type="text" id="lobby-message" placeholder="输入聊天内容">
-                    <button onclick="sendLobbyMessage()">发送</button>
+                    <button id="lobby-message-btn">发送</button>
+                </div>
+
+                <!-- 房间聊天 -->
+                <div class="chat-input">
+                    <input type="text" id="room-message" placeholder="输入聊天内容">
+                    <button id="room-message-btn">发送</button>
                 </div>
             </div>
         </div>

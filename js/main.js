@@ -133,14 +133,22 @@ function updateOnlineUsers(users) {
 }
 
 // 邀请对战
-function inviteToGame(userId) {
-    // 先获取被邀请用户的信息
-    database.ref(`users/${userId}`).once('value').then((snapshot) => {
-        const invitedUser = snapshot.val();
-        if (!invitedUser) return;
+// 邀请对战
+async function inviteToGame(userId) {
+    try {
+        // 获取被邀请用户信息
+        const userSnapshot = await database.ref(`users/${userId}`).once('value');
+        const invitedUser = userSnapshot.val();
+        
+        if (!invitedUser) {
+            alert('无法找到该用户');
+            return;
+        }
 
         const roomId = generateRoomId();
-        database.ref(`rooms/${roomId}`).set({
+        
+        // 创建房间数据
+        await database.ref(`rooms/${roomId}`).set({
             players: {
                 [currentUser.id]: {
                     nickname: currentUser.nickname,
@@ -157,10 +165,15 @@ function inviteToGame(userId) {
                 gameState: 'waiting'
             },
             created: Date.now()
-        }).then(() => {
-            joinRoom(roomId);
         });
-    });
+
+        // 加入房间
+        await joinRoom(roomId);
+        
+    } catch (error) {
+        console.error('邀请对战失败:', error);
+        alert('邀请对战失败，请重试');
+    }
 }
 
 // 加入房间
@@ -197,24 +210,35 @@ function leaveRoom() {
 }
 
 // 发送大厅消息
-function sendLobbyMessage() {
+// 发送大厅消息
+async function sendLobbyMessage() {
     const input = document.getElementById('lobby-message');
     const content = input.value.trim();
     
     if (content && currentUser.nickname) {
-        chat.sendLobbyMessage(currentUser.nickname, content);
-        input.value = '';
+        try {
+            await chat.sendLobbyMessage(currentUser.nickname, content);
+            input.value = '';
+        } catch (error) {
+            console.error('发送消息失败:', error);
+            alert('发送消息失败，请重试');
+        }
     }
 }
 
 // 发送房间消息
-function sendRoomMessage() {
+async function sendRoomMessage() {
     const input = document.getElementById('room-message');
     const content = input.value.trim();
     
     if (content && currentUser.nickname && game.roomId) {
-        chat.sendRoomMessage(game.roomId, currentUser.nickname, content);
-        input.value = '';
+        try {
+            await chat.sendRoomMessage(game.roomId, currentUser.nickname, content);
+            input.value = '';
+        } catch (error) {
+            console.error('发送消息失败:', error);
+            alert('发送消息失败，请重试');
+        }
     }
 }
 
@@ -225,3 +249,23 @@ function generateRoomId() {
 
 // 页面加载完成后初始化
 window.addEventListener('load', init);
+
+// 在 init 函数中添加事件监听器绑定
+function init() {
+    game = new Game();
+    chat = new Chat();
+    checkNickname();
+    initFirebase();
+    
+    // 绑定消息发送按钮事件
+    document.getElementById('lobby-message-btn')?.addEventListener('click', sendLobbyMessage);
+    document.getElementById('room-message-btn')?.addEventListener('click', sendRoomMessage);
+    
+    // 绑定回车发送消息
+    document.getElementById('lobby-message')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendLobbyMessage();
+    });
+    document.getElementById('room-message')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendRoomMessage();
+    });
+}
