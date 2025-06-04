@@ -1,1 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线五子棋</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 昵称设置弹窗 -->
+        <div id="nickname-modal" class="modal">
+            <div class="modal-content">
+                <h2>设置昵称</h2>
+                <input type="text" id="nickname-input" placeholder="请输入昵称">
+                <button onclick="setNickname()">确定</button>
+            </div>
+        </div>
+
+        <!-- 大厅 -->
+        <div id="lobby" class="section">
+            <div class="header">
+                <h1>五子棋大厅</h1>
+                <div class="user-info">
+                    <span id="current-user"></span>
+                    <button onclick="showNicknameModal()">修改昵称</button>
+                </div>
+            </div>
+            
+            <div class="players-list">
+                <h2>在线玩家</h2>
+                <div id="online-players"></div>
+            </div>
+
+            <div class="chat-box">
+                <div id="lobby-chat" class="chat-messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="lobby-message" placeholder="输入聊天内容">
+                    <button onclick="sendLobbyMessage()">发送</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏房间 -->
+        <div id="game-room" class="section hidden">
+            <div class="header">
+                <h2>对局房间</h2>
+                <div class="room-info">
+                    <span id="room-players"></span>
+                    <button onclick="leaveRoom()">退出房间</button>
+                </div>
+            </div>
+
+            <div class="game-container">
+                <canvas id="game-board"></canvas>
+                <div class="game-info">
+                    <div id="current-turn"></div>
+                    <div id="spectators"></div>
+                </div>
+            </div>
+
+            <div class="chat-box">
+                <div id="room-chat" class="chat-messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="room-message" placeholder="输入聊天内容">
+                    <button onclick="sendRoomMessage()">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
 <h2>hello world ~</h2>
