@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>联机五子棋 | 在线对战</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary: #3498db;
+            --secondary: #2c3e50;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --board-bg: #f0d9b5;
+            --black-stone: #2c3e50;
+            --white-stone: #ecf0f1;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .panel {
+            background: rgba(44, 62, 80, 0.85);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .user-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: rgba(52, 73, 94, 0.7);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            background: rgba(52, 73, 94, 0.9);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-name {
+            font-weight: 500;
+        }
+
+        .user-status {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+
+        .status-idle {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-playing {
+            background: var(--warning);
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .game-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .game-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .info-item {
+            background: rgba(52, 73, 94, 0.7);
+            padding: 8px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .game-board-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+        }
+
+        #game-board {
+            background: var(--board-bg);
+            border-radius: 5px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding-top: 20px;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-self {
+            background: var(--primary);
+            margin-left: auto;
+        }
+
+        .message-other {
+            background: var(--dark);
+            margin-right: auto;
+        }
+
+        .message-system {
+            background: rgba(0, 0, 0, 0.3);
+            text-align: center;
+            font-style: italic;
+            margin: 10px auto;
+            width: 90%;
+            padding: 5px;
+        }
+
+        .message-sender {
+            font-weight: bold;
+            margin-bottom: 3px;
+            font-size: 0.9rem;
+        }
+
+        .message-content {
+            word-wrap: break-word;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 12px 15px;
+            border-radius: 30px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+        }
+
+        #chat-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        #send-message {
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: var(--secondary);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .modal-body {
+            margin-bottom: 25px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+        }
+
+        .invite-modal .modal-content {
+            text-align: center;
+        }
+
+        .invite-text {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+        }
+
+        .inviter-name {
+            color: var(--warning);
+            font-weight: bold;
+        }
+
+        .stone {
+            position: absolute;
+            border-radius: 50%;
+            animation: placeStone 0.3s ease-out;
+        }
+
+        @keyframes placeStone {
+            0% { transform: scale(0); }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .win-line {
+            position: absolute;
+            background: var(--danger);
+            height: 6px;
+            border-radius: 3px;
+            transform-origin: 0 0;
+            animation: drawLine 0.5s ease-out;
+        }
+
+        @keyframes drawLine {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        .player-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .player-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .player-role {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .turn-indicator {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 15px 0;
+            text-align: center;
+            height: 30px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: var(--success);
+        }
+
+        .status-offline {
+            background: var(--danger);
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .panel {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录/昵称设置模态框 -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">欢迎来到联机五子棋</h2>
+                <p>设置您的昵称开始游戏</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">请输入您的昵称</label>
+                    <input type="text" id="username" class="form-input" placeholder="例如: 棋圣" maxlength="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="save-username">开始游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 邀请模态框 -->
+    <div class="modal invite-modal" id="invite-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">对战邀请</h2>
+            </div>
+            <div class="modal-body">
+                <p class="invite-text"><span class="inviter-name" id="inviter-name">玩家</span> 邀请您进行五子棋对战</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="accept-invite">接受</button>
+                <button class="btn btn-danger" id="decline-invite">拒绝</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧用户列表 -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <i class="fas fa-users"></i>
+                    在线玩家
+                </h2>
+                <div class="user-count">
+                    <span id="online-count">0</span> 人在线
+                </div>
+            </div>
+            <div class="user-list" id="user-list">
+                <!-- 用户列表会动态加载 -->
+            </div>
+        </div>
+
+        <!-- 中间游戏区域 -->
+        <div class="panel game-container">
+            <div class="game-header">
+                <h2 class="game-title">联机五子棋</h2>
+                <div class="game-info">
+                    <div class="info-item">
+                        <i class="fas fa-user"></i>
+                        <span id="current-user">游客</span>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-sync-alt"></i>
+                        <span id="connection-status">连接中...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="turn-indicator" id="turn-indicator">
+                请在大厅选择对手开始游戏
+            </div>
+
+            <div class="game-board-container">
+                <canvas id="game-board" width="600" height="600"></canvas>
+                <!-- 玩家信息会动态显示 -->
+            </div>
+
+            <div class="game-controls">
+                <button class="btn btn-warning" id="back-to-lobby">
+                    <i class="fas fa-home"></i> 返回大厅
+                </button>
+                <button class="btn btn-danger" id="resign-btn">
+                    <i class="fas fa-flag"></i> 认输
+                </button>
+            </div>
+        </div>
+
+        <!-- 右侧聊天区域 -->
+        <div class="panel chat-container">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <i class="fas fa-comments"></i>
+                    游戏聊天
+                </h2>
+                <div class="chat-info">
+                    <span id="chat-room">大厅</span>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message message-system">
+                    欢迎来到联机五子棋！请在大厅选择对手开始游戏
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="chat-input" placeholder="输入聊天内容...">
+                <button class="btn btn-primary" id="send-message">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcXtlPYr36ODkf_a0t5IwBsWUjQCtmZbE",
+            authDomain: "gobang-27d96.firebaseapp.com",
+            databaseURL: "https://gobang-27d96-default-rtdb.firebaseio.com",
+            projectId: "gobang-27d96",
+            storageBucket: "gobang-27d96.firebasestorage.app",
+            messagingSenderId: "574028404402",
+            appId: "1:574028404402:web:aa74f333a5adc41a289bab",
+            measurementId: "G-627W6W10VN"
+        };
+
+        // 初始化 Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // 游戏常量
+        const BOARD_SIZE = 15;
+        const CELL_SIZE = 40;
+        const STONE_RADIUS = 18;
+        const BOARD_PADDING = 30;
+
+        // 游戏状态
+        let gameState = {
+            userId: null,
+            username: "",
+            status: "idle", // idle, playing, spectating
+            currentGame: null,
+            currentRoom: "lobby",
+            isMyTurn: false,
+            playerColor: null,
+            board: Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null)),
+            players: {},
+            spectators: []
+        };
+
+        // DOM 元素
+        const elements = {
+            loginModal: document.getElementById('login-modal'),
+            inviteModal: document.getElementById('invite-modal'),
+            userList: document.getElementById('user-list'),
+            onlineCount: document.getElementById('online-count'),
+            currentUser: document.getElementById('current-user'),
+            connectionStatus: document.getElementById('connection-status'),
+            gameBoard: document.getElementById('game-board'),
+            turnIndicator: document.getElementById('turn-indicator'),
+            chatMessages: document.getElementById('chat-messages'),
+            chatInput: document.getElementById('chat-input'),
+            sendMessage: document.getElementById('send-message'),
+            chatRoom: document.getElementById('chat-room'),
+            backToLobby: document.getElementById('back-to-lobby'),
+            resignBtn: document.getElementById('resign-btn'),
+            saveUsername: document.getElementById('save-username'),
+            acceptInvite: document.getElementById('accept-invite'),
+            declineInvite: document.getElementById('decline-invite'),
+            usernameInput: document.getElementById('username'),
+            inviterName: document.getElementById('inviter-name')
+        };
+
+        // 初始化函数
+        function init() {
+            // 检查是否有保存的用户名
+            const savedUsername = getCookie('username');
+            if (savedUsername) {
+                gameState.username = savedUsername;
+                elements.currentUser.textContent = savedUsername;
+                connectToFirebase();
+            } else {
+                showLoginModal();
+            }
+
+            // 设置事件监听器
+            setupEventListeners();
+
+            // 初始化棋盘
+            initBoard();
+        }
+
+        // 显示登录模态框
+        function showLoginModal() {
+            elements.loginModal.classList.add('active');
+        }
+
+        // 隐藏登录模态框
+        function hideLoginModal() {
+            elements.loginModal.classList.remove('active');
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 保存用户名
+            elements.saveUsername.addEventListener('click', () => {
+                const username = elements.usernameInput.value.trim();
+                if (username.length < 2 || username.length > 20) {
+                    alert('昵称长度必须在2-20个字符之间');
+                    return;
+                }
+
+                gameState.username = username;
+                setCookie('username', username, 1);
+                elements.currentUser.textContent = username;
+                hideLoginModal();
+                connectToFirebase();
+            });
+
+            // 发送消息
+            elements.sendMessage.addEventListener('click', sendChatMessage);
+            elements.chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatMessage();
+                }
+            });
+
+            // 返回大厅
+            elements.backToLobby.addEventListener('click', backToLobby);
+
+            // 认输
+            elements.resignBtn.addEventListener('click', resignGame);
+
+            // 邀请处理
+            elements.acceptInvite.addEventListener('click', acceptInvite);
+            elements.declineInvite.addEventListener('click', declineInvite);
+
+            // 棋盘点击事件
+            elements.gameBoard.addEventListener('click', handleBoardClick);
+        }
+
+        // 连接到Firebase
+        function connectToFirebase() {
+            gameState.userId = generateUserId();
+
+            // 更新用户状态
+            updateUserStatus('idle');
+
+            // 设置心跳
+            setInterval(sendHeartbeat, 30000);
+
+            // 监听用户列表变化
+            database.ref('users').on('value', (snapshot) => {
+                const users = snapshot.val() || {};
+                updateUserList(users);
+                elements.onlineCount.textContent = Object.keys(users).length;
+
+                // 清理离线用户
+                cleanupInactiveUsers(users);
+            });
+
+            // 监听邀请
+            database.ref(`invitations/${gameState.userId}`).on('value', (snapshot) => {
+                const invitation = snapshot.val();
+                if (invitation && invitation.status === 'pending') {
+                    showInviteModal(invitation);
+                }
+            });
+
+            // 监听聊天消息
+            database.ref(`chat/${gameState.currentRoom}`).on('child_added', (snapshot) => {
+                const message = snapshot.val();
+                addChatMessage(message);
+            });
+
+            // 监听游戏状态
+            database.ref('games').on('value', (snapshot) => {
+                const games = snapshot.val() || {};
+                if (gameState.currentGame && games[gameState.currentGame]) {
+                    updateGameState(games[gameState.currentGame]);
+                }
+            });
+
+            // 更新连接状态
+            elements.connectionStatus.innerHTML = '<span class="status-indicator status-online"></span> 已连接';
+        }
+
+        // 生成用户ID
+        function generateUserId() {
+            return 'user_' + Math.random().toString(36).substr(2, 8);
+        }
+
+        // 更新用户状态
+        function updateUserStatus(status) {
+            gameState.status = status;
+
+            database.ref(`users/${gameState.userId}`).set({
+                username: gameState.username,
+                status: status,
+                lastActive: Date.now(),
+                currentGame: gameState.currentGame || null
+            });
+        }
+
+        // 发送心跳
+        function sendHeartbeat() {
+            if (gameState.userId) {
+                database.ref(`users/${gameState.userId}/lastActive`).set(Date.now());
+            }
+        }
+
+        // 清理不活跃用户
+        function cleanupInactiveUsers(users) {
+            const now = Date.now();
+            const inactiveThreshold = 60000; // 60秒
+
+            for (const userId in users) {
+                if (now - users[userId].lastActive > inactiveThreshold) {
+                    // 从游戏中移除
+                    if (users[userId].currentGame) {
+                        database.ref(`games/${users[userId].currentGame}`).transaction((game) => {
+                            if (game) {
+                                if (game.players[userId]) {
+                                    delete game.players[userId];
+                                }
+                                if (game.spectators && game.spectators[userId]) {
+                                    delete game.spectators[userId];
+                                }
+                            }
+                            return game;
+                        });
+                    }
+
+                    // 从用户列表中移除
+                    database.ref(`users/${userId}`).remove();
+                }
+            }
+        }
+
+        // 更新用户列表
+        function updateUserList(users) {
+            elements.userList.innerHTML = '';
+
+            for (const userId in users) {
+                if (userId === gameState.userId) continue; // 跳过自己
+
+                const user = users[userId];
+                const userItem = document.createElement('div');
+                userItem.className = `user-item ${user.status === 'playing' ? 'playing' : ''}`;
+
+                userItem.innerHTML = `
+                    <div class="user-info">
+                        <div class="user-avatar">${user.username.charAt(0)}</div>
+                        <div>
+                            <div class="user-name">${user.username}</div>
+                            <div class="user-status status-${user.status}">${user.status === 'playing' ? '对局中' : '空闲中'}</div>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        ${user.status === 'idle' ?
+                            `<button class="btn btn-primary invite-btn" data-userid="${userId}">约战</button>` :
+                            `<button class="btn btn-warning spectate-btn" data-userid="${userId}">观战</button>`
+                        }
+                    </div>
+                `;
+
+                elements.userList.appendChild(userItem);
+            }
+
+            // 添加事件监听器
+            document.querySelectorAll('.invite-btn').forEach(btn => {
+                btn.addEventListener('click', () => sendInvite(btn.dataset.userid));
+            });
+
+            document.querySelectorAll('.spectate-btn').forEach(btn => {
+                btn.addEventListener('click', () => spectateGame(btn.dataset.userid));
+            });
+        }
+
+        // 发送邀请
+        function sendInvite(targetUserId) {
+            const invitationRef = database.ref(`invitations/${targetUserId}`);
+
+            invitationRef.set({
+                fromUserId: gameState.userId,
+                fromUsername: gameState.username,
+                status: 'pending',
+                timestamp: Date.now()
+            });
+
+            // 添加系统消息
+            addSystemMessage(`已向玩家发送对战邀请`);
+        }
+
+        // 显示邀请模态框
+        function showInviteModal(invitation) {
+            elements.inviterName.textContent = invitation.fromUsername;
+            elements.inviteModal.classList.add('active');
+
+            // 设置邀请处理函数
+            elements.acceptInvite.onclick = () => acceptInvite(invitation);
+            elements.declineInvite.onclick = () => declineInvite(invitation);
+        }
+
+        // 接受邀请
+        function acceptInvite(invitation) {
+            elements.inviteModal.classList.remove('active');
+
+            // 创建新游戏
+            const gameId = 'game_' + Date.now();
+            gameState.currentGame = gameId;
+            gameState.currentRoom = gameId;
+            gameState.status = 'playing';
+            gameState.playerColor = 'black'; // 邀请方为黑棋先手
+
+            // 设置游戏数据
+            database.ref(`games/${gameId}`).set({
+                players: {
+                    [invitation.fromUserId]: { username: invitation.fromUsername, color: 'black', isTurn: true },
+                    [gameState.userId]: { username: gameState.username, color: 'white', isTurn: false }
+                },
+                board: Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null)),
+                currentPlayer: 'black',
+                winner: null,
+                spectators: {}
+            });
+
+            // 更新用户状态
+            updateUserStatus('playing');
+            database.ref(`users/${invitation.fromUserId}/status`).set('playing');
+            database.ref(`users/${invitation.fromUserId}/currentGame`).set(gameId);
+            database.ref(`users/${gameState.userId}/currentGame`).set(gameId);
+
+            // 清除邀请
+            database.ref(`invitations/${gameState.userId}`).remove();
+
+            // 切换聊天室
+            elements.chatRoom.textContent = `房间: ${gameId.substring(0, 6)}`;
+
+            // 添加系统消息
+            addSystemMessage(`已加入游戏，您是白方`);
+
+            // 更新界面
+            elements.turnIndicator.textContent = "等待黑方落子...";
+        }
+
+        // 拒绝邀请
+        function declineInvite() {
+            elements.inviteModal.classList.remove('active');
+            database.ref(`invitations/${gameState.userId}`).remove();
+            addSystemMessage("已拒绝对战邀请");
+        }
+
+        // 观战游戏
+        function spectateGame(userId) {
+            database.ref(`users/${userId}`).once('value').then(snapshot => {
+                const user = snapshot.val();
+                if (user && user.currentGame) {
+                    gameState.currentGame = user.currentGame;
+                    gameState.currentRoom = user.currentGame;
+                    gameState.status = 'spectating';
+
+                    // 更新用户状态
+                    updateUserStatus('spectating');
+
+                    // 添加到观战者列表
+                    database.ref(`games/${gameState.currentGame}/spectators/${gameState.userId}`).set({
+                        username: gameState.username
+                    });
+
+                    // 切换聊天室
+                    elements.chatRoom.textContent = `房间: ${gameState.currentGame.substring(0, 6)}`;
+
+                    // 添加系统消息
+                    addSystemMessage(`已进入观战模式`);
+
+                    // 更新游戏状态
+                    database.ref(`games/${gameState.currentGame}`).once('value').then(snap => {
+                        if (snap.exists()) {
+                            updateGameState(snap.val());
+                        }
+                    });
+                }
+            });
+        }
+
+        // 初始化棋盘
+        function initBoard() {
+            const ctx = elements.gameBoard.getContext('2d');
+            const boardSize = BOARD_SIZE * CELL_SIZE;
+
+            // 设置画布尺寸
+            elements.gameBoard.width = boardSize + BOARD_PADDING * 2;
+            elements.gameBoard.height = boardSize + BOARD_PADDING * 2;
+
+            // 绘制棋盘背景
+            ctx.fillStyle = '#f0d9b5';
+            ctx.fillRect(0, 0, elements.gameBoard.width, elements.gameBoard.height);
+
+            // 绘制网格线
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                // 横线
+                ctx.beginPath();
+                ctx.moveTo(BOARD_PADDING, BOARD_PADDING + i * CELL_SIZE);
+                ctx.lineTo(BOARD_PADDING + boardSize - CELL_SIZE, BOARD_PADDING + i * CELL_SIZE);
+                ctx.stroke();
+
+                // 竖线
+                ctx.beginPath();
+                ctx.moveTo(BOARD_PADDING + i * CELL_SIZE, BOARD_PADDING);
+                ctx.lineTo(BOARD_PADDING + i * CELL_SIZE, BOARD_PADDING + boardSize - CELL_SIZE);
+                ctx.stroke();
+            }
+        }
+
+        // 更新游戏状态
+        function updateGameState(gameData) {
+            gameState.board = gameData.board;
+            gameState.players = gameData.players;
+            gameState.spectators = gameData.spectators || {};
+
+            // 更新棋盘
+            renderBoard();
+
+            // 更新玩家信息
+            renderPlayerInfo();
+
+            // 更新回合指示器
+            if (gameData.winner) {
+                if (gameData.winner === 'draw') {
+                    elements.turnIndicator.textContent = "游戏结束：平局！";
+                } else {
+                    const winner = Object.values(gameData.players).find(p => p.color === gameData.winner);
+                    elements.turnIndicator.textContent = `游戏结束：${winner.username} 获胜！`;
+                }
+            } else if (gameState.status === 'playing') {
+                const currentPlayer = Object.values(gameData.players).find(p => p.isTurn);
+                gameState.isMyTurn = currentPlayer && currentPlayer.color === gameState.playerColor;
+
+                if (gameState.isMyTurn) {
+                    elements.turnIndicator.textContent = "轮到您落子";
+                } else {
+                    elements.turnIndicator.textContent = `等待对方落子...`;
+                }
+            } else if (gameState.status === 'spectating') {
+                const currentPlayer = Object.values(gameData.players).find(p => p.isTurn);
+                elements.turnIndicator.textContent = `当前回合：${currentPlayer.username}`;
+            }
+        }
+
+        // 渲染棋盘
+        function renderBoard() {
+            const ctx = elements.gameBoard.getContext('2d');
+            const boardSize = BOARD_SIZE * CELL_SIZE;
+
+            // 清除棋盘
+            ctx.clearRect(0, 0, elements.gameBoard.width, elements.gameBoard.height);
+            initBoard(); // 重新绘制棋盘背景
+
+            // 绘制棋子
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const stone = gameState.board[row][col];
+                    if (stone) {
+                        const x = BOARD_PADDING + col * CELL_SIZE;
+                        const y = BOARD_PADDING + row * CELL_SIZE;
+
+                        // 绘制棋子
+                        ctx.beginPath();
+                        ctx.arc(x, y, STONE_RADIUS, 0, Math.PI * 2);
+                        ctx.fillStyle = stone === 'black' ? '#2c3e50' : '#ecf0f1';
+                        ctx.fill();
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // 渲染玩家信息
+        function renderPlayerInfo() {
+            const container = document.querySelector('.game-board-container');
+
+            // 移除旧玩家卡片
+            const oldCards = document.querySelectorAll('.player-card');
+            oldCards.forEach(card => card.remove());
+
+            // 添加玩家卡片
+            for (const userId in gameState.players) {
+                const player = gameState.players[userId];
+                const isCurrentUser = userId === gameState.userId;
+
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.style.position = 'absolute';
+                card.style.top = '20px';
+                card.style[player.color === 'black' ? 'left' : 'right'] = '20px';
+                card.style.backgroundColor = player.color === 'black' ? '#2c3e50' : '#ecf0f1';
+                card.style.color = player.color === 'black' ? '#fff' : '#000';
+
+                card.innerHTML = `
+                    <div class="player-name">${player.username} ${isCurrentUser ? '(您)' : ''}</div>
+                    <div class="player-role">${player.color === 'black' ? '● 黑方' : '○ 白方'}</div>
+                `;
+
+                container.appendChild(card);
+            }
+
+            // 添加观战者信息
+            const spectatorCount = Object.keys(gameState.spectators).length;
+            if (spectatorCount > 0) {
+                const info = document.createElement('div');
+                info.className = 'info-item';
+                info.style.position = 'absolute';
+                info.style.bottom = '20px';
+                info.style.left = '20px';
+                info.innerHTML = `<i class="fas fa-eye"></i> ${spectatorCount} 人观战`;
+                container.appendChild(info);
+            }
+        }
+
+        // 处理棋盘点击
+        function handleBoardClick(event) {
+            if (gameState.status !== 'playing' || !gameState.isMyTurn || gameState.board.winner) return;
+
+            const rect = elements.gameBoard.getBoundingClientRect();
+            const x = event.clientX - rect.left - BOARD_PADDING;
+            const y = event.clientY - rect.top - BOARD_PADDING;
+
+            // 计算行列
+            const col = Math.round(x / CELL_SIZE);
+            const row = Math.round(y / CELL_SIZE);
+
+            if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+                // 检查位置是否为空
+                if (!gameState.board[row][col]) {
+                    // 落子
+                    placeStone(row, col, gameState.playerColor);
+                }
+            }
+        }
+
+        // 落子
+        function placeStone(row, col, color) {
+            // 更新本地状态
+            gameState.board[row][col] = color;
+
+            // 更新Firebase
+            database.ref(`games/${gameState.currentGame}`).transaction((game) => {
+                if (game) {
+                    // 更新棋盘
+                    game.board[row][col] = color;
+
+                    // 检查胜利
+                    if (checkWin(row, col, color, game.board)) {
+                        game.winner = color;
+                    } else if (isBoardFull(game.board)) {
+                        game.winner = 'draw';
+                    } else {
+                        // 切换回合
+                        game.currentPlayer = color === 'black' ? 'white' : 'black';
+                        for (const userId in game.players) {
+                            game.players[userId].isTurn = game.players[userId].color === game.currentPlayer;
+                        }
+                    }
+                }
+                return game;
+            });
+        }
+
+        // 检查胜利
+        function checkWin(row, col, color, board) {
+            const directions = [
+                [0, 1],   // 水平
+                [1, 0],   // 垂直
+                [1, 1],   // 对角线
+                [1, -1]   // 反对角线
+            ];
+
+            for (const [dx, dy] of directions) {
+                let count = 1;
+
+                // 正向检查
+                for (let i = 1; i < 5; i++) {
+                    const newRow = row + i * dx;
+                    const newCol = col + i * dy;
+
+                    if (newRow >= 0 && newRow < BOARD_SIZE &&
+                        newCol >= 0 && newCol < BOARD_SIZE &&
+                        board[newRow][newCol] === color) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+
+                // 反向检查
+                for (let i = 1; i < 5; i++) {
+                    const newRow = row - i * dx;
+                    const newCol = col - i * dy;
+
+                    if (newRow >= 0 && newRow < BOARD_SIZE &&
+                        newCol >= 0 && newCol < BOARD_SIZE &&
+                        board[newRow][newCol] === color) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (count >= 5) return true;
+            }
+
+            return false;
+        }
+
+        // 检查棋盘是否已满
+        function isBoardFull(board) {
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (!board[row][col]) return false;
+                }
+            }
+            return true;
+        }
+
+        // 发送聊天消息
+        function sendChatMessage() {
+            const message = elements.chatInput.value.trim();
+            if (message && gameState.userId) {
+                const messageData = {
+                    userId: gameState.userId,
+                    username: gameState.username,
+                    message: message,
+                    timestamp: Date.now()
+                };
+
+                database.ref(`chat/${gameState.currentRoom}`).push(messageData);
+                elements.chatInput.value = '';
+
+                // 添加本地消息
+                addChatMessage({
+                    ...messageData,
+                    isSelf: true
+                });
+            }
+        }
+
+        // 添加聊天消息
+        function addChatMessage(messageData) {
+            const messageElement = document.createElement('div');
+            const isSelf = messageData.userId === gameState.userId;
+            const isSystem = messageData.userId === 'system';
+
+            if (isSystem) {
+                messageElement.className = 'message message-system';
+                messageElement.textContent = messageData.message;
+            } else {
+                messageElement.className = `message ${isSelf ? 'message-self' : 'message-other'}`;
+                messageElement.innerHTML = `
+                    <div class="message-sender">${messageData.username}</div>
+                    <div class="message-content">${messageData.message}</div>
+                `;
+            }
+
+            elements.chatMessages.appendChild(messageElement);
+            elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+        }
+
+        // 添加系统消息
+        function addSystemMessage(message) {
+            addChatMessage({
+                userId: 'system',
+                username: '系统',
+                message: message,
+                timestamp: Date.now()
+            });
+        }
+
+        // 返回大厅
+        function backToLobby() {
+            if (gameState.currentGame) {
+                // 从游戏中移除
+                if (gameState.status === 'playing') {
+                    database.ref(`games/${gameState.currentGame}/players/${gameState.userId}`).remove();
+
+                    // 如果只剩一个玩家，结束游戏
+                    database.ref(`games/${gameState.currentGame}/players`).once('value').then(snapshot => {
+                        if (snapshot.numChildren() === 1) {
+                            database.ref(`games/${gameState.currentGame}`).update({
+                                winner: Object.values(snapshot.val())[0].color
+                            });
+                        }
+                    });
+                } else if (gameState.status === 'spectating') {
+                    database.ref(`games/${gameState.currentGame}/spectators/${gameState.userId}`).remove();
+                }
+
+                gameState.currentGame = null;
+            }
+
+            // 更新状态
+            gameState.status = 'idle';
+            gameState.currentRoom = 'lobby';
+            updateUserStatus('idle');
+
+            // 重置游戏状态
+            gameState.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+            gameState.players = {};
+            gameState.spectators = [];
+
+            // 更新界面
+            elements.chatRoom.textContent = '大厅';
+            elements.turnIndicator.textContent = '请在大厅选择对手开始游戏';
+            renderBoard();
+
+            // 添加系统消息
+            addSystemMessage('已返回大厅');
+        }
+
+        // 认输
+        function resignGame() {
+            if (gameState.status !== 'playing' || !gameState.currentGame) return;
+
+            // 确定获胜方
+            const winnerColor = gameState.playerColor === 'black' ? 'white' : 'black';
+
+            // 更新游戏状态
+            database.ref(`games/${gameState.currentGame}`).update({
+                winner: winnerColor
+            });
+
+            // 添加系统消息
+            addSystemMessage('您已认输，游戏结束');
+        }
+
+        // Cookie 操作
+        function setCookie(name, value, days) {
+            const d = new Date();
+            d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+            const expires = "expires=" + d.toUTCString();
+            document.cookie = name + "=" + value + ";" + expires + ";path=/";
+        }
+
+        function getCookie(name) {
+            const cookies = document.cookie.split(';');
+            for (const cookie of cookies) {
+                const [cookieName, cookieValue] = cookie.trim().split('=');
+                if (cookieName === name) {
+                    return cookieValue;
+                }
+            }
+            return null;
+        }
+
+        // 初始化应用
+        window.onload = init;
+    </script>
+</body>
+</html>
